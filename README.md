@@ -15,9 +15,9 @@ when you wanted Ansible's blockinfile function, but did not want to be dependent
 
 ```
 go get -u github.com/dustinsand/blockinfile
+cd $GOPATH/src/github.com/dustinsand/blockinfile
+go install
 ```
-
-Use `go install` to install the executable.
 
 # CLI arguments
 |Argument|Comments|
