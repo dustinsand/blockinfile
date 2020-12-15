@@ -1,0 +1,258 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
+)
+
+func main() {
+	var backup, state bool
+	var indent int
+	var block, insertBefore, insertAfter, marker, markerBegin, markerEnd, path string
+
+	flags := []cli.Flag{
+		altsrc.NewBoolFlag(&cli.BoolFlag{
+			Name:        "backup",
+			Usage:       "create a backup file including the timestamp information so you can get the original file back if you somehow clobbered it incorrectly.",
+			Destination: &backup,
+			DefaultText: "false",
+			Value:       false,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name: "block",
+			Usage: `The text to insert inside the marker lines.
+					If it is missing or an empty string, the block will be removed as if state were specified to absent.`,
+			Destination: &block,
+		}),
+		altsrc.NewIntFlag(&cli.IntFlag{
+			Name:        "indent",
+			Usage:       "The number of spaces to indent the block. Indent must be >= 0.",
+			Destination: &indent,
+			DefaultText: "0",
+			Value:       0,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name: "insertafter",
+			Usage: `If specified and no begin/ending marker lines are found, the block will be inserted after the last match of specified regular expression.
+					A special value is available; EOF for inserting the block at the end of the file.
+					If specified regular expression has no matches, EOF will be used instead.`,
+			Destination: &insertAfter,
+			Value:       "",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name: "insertbefore",
+			Usage: `If specified and no begin/ending marker lines are found, the block will be inserted before the last match of specified regular expression.
+					A special value is available; BOF for inserting the block at the beginning of the file.
+				    If specified regular expression has no matches, the block will be inserted at the end of the file.`,
+			Destination: &insertBefore,
+			Value:       "",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name: "marker",
+			Usage: `The marker line template.
+				    {mark} will be replaced with the values in marker_begin (default="BEGIN") and marker_end (default="END").
+				    Using a custom marker without the {mark} variable may result in the block being repeatedly inserted on subsequent playbook runs.`,
+			Destination: &marker,
+			Value:       "# {mark} MANAGED BLOCK",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "markerbegin",
+			Usage:       "This will be inserted at {mark} in the opening ansible block marker.",
+			Destination: &markerBegin,
+			DefaultText: "BEGIN",
+			Value:       "BEGIN",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "markerend",
+			Usage:       "This will be inserted at {mark} in the closing ansible block marker.",
+			Destination: &markerEnd,
+			DefaultText: "END",
+			Value:       "END",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "path",
+			Usage:       "the file to modify",
+			Destination: &path,
+		}),
+		altsrc.NewBoolFlag(&cli.BoolFlag{
+			Name:        "state",
+			Usage:       "Whether the block should be there or not.",
+			Destination: &state,
+			DefaultText: "true",
+			Value:       true,
+		}),
+		&cli.StringFlag{
+			Name:  "config",
+			Usage: "config file of TODO",
+		},
+	}
+
+	app := &cli.App{
+		Name:    "blockinfile",
+		Version: "v1.0.0",
+		Action: func(c *cli.Context) error {
+			err := checkFlags(block, marker, path, insertBefore, insertAfter)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if backup {
+				backupFile(path)
+			}
+
+			replaceTextBetweenMarkersInFile(
+				path,
+				block,
+				strings.Replace(marker, "{mark}", markerBegin, 1),
+				strings.Replace(marker, "{mark}", markerEnd, 1),
+				insertBefore,
+				insertAfter,
+				indent,
+				state,
+			)
+
+			return nil
+		},
+		Before: altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("config")),
+		Flags:  flags,
+	}
+
+	sort.Sort(cli.FlagsByName(app.Flags))
+	sort.Sort(cli.CommandsByName(app.Commands))
+
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func backupFile(sourceFile string) {
+	input, err := ioutil.ReadFile(sourceFile)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	var backupFile = sourceFile + "." + time.Now().Format(time.RFC3339)
+	err = ioutil.WriteFile(backupFile, input, 0644)
+	if err != nil {
+		fmt.Println("Error creating", backupFile)
+		log.Fatal(err)
+		return
+	}
+}
+
+func checkFlags(block, marker, path, insertBefore, insertAfter string) error {
+	if path == "" {
+		return errors.New("Required flag \"path\" not set.")
+	}
+	if insertBefore != "" && insertAfter != "" {
+		return errors.New("Only one of these flags can be used at a time [markerbegin|markerend].")
+	}
+	return nil
+}
+
+func replaceTextBetweenMarkersInFile(sourceFile, replaceText, beginMarker, endMarker, insertBefore, insertAfter string,
+	indent int,
+	state bool,
+) {
+	// Read entire file content, giving us little control but
+	// making it very simple. No need to close the file.
+	content, err := ioutil.ReadFile(sourceFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	f, err := os.OpenFile(sourceFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.WriteString(replaceTextBetweenMarkers(string(content), replaceText, beginMarker, endMarker, insertBefore, insertAfter, indent, state))
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
+	beginIndex := strings.LastIndex(sourceText, beginMarker)
+	if beginIndex >= 0 {
+		endIndex := strings.LastIndex(sourceText, endMarker) + len(endMarker) + 1
+		return sourceText[:beginIndex] + sourceText[endIndex:]
+	}
+	return sourceText
+}
+
+func replaceTextBetweenMarkers(sourceText, replaceText, beginMarker, endMarker, insertBefore, insertAfter string, indent int, state bool) string {
+	reAddSpaces := regexp.MustCompile(`\r?\n`)
+	paddedBeginMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", indent), beginMarker)
+	paddedEndMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", indent), endMarker)
+	paddedReplaceText := fmt.Sprintf("%s%s", strings.Repeat(" ", indent),
+		reAddSpaces.ReplaceAllString(replaceText, "\n"+strings.Repeat(" ", indent)))
+
+	if !state {
+		// Remove the block
+		return removeExistingBlock(sourceText, beginMarker, endMarker)
+	} else if insertBefore != "" {
+		sourceText = removeExistingBlock(sourceText, beginMarker, endMarker)
+
+		var index = strings.LastIndex(sourceText, insertBefore)
+		// Not found, insert at EOF
+		if index < 0 {
+			return fmt.Sprintf("%s%s\n%s\n%s\n",
+				sourceText,
+				paddedBeginMarker,
+				paddedReplaceText,
+				paddedEndMarker)
+		} else {
+			// Insert before
+			return fmt.Sprintf("%s%s\n%s\n%s\n%s",
+				sourceText[:index],
+				paddedBeginMarker,
+				paddedReplaceText,
+				paddedEndMarker,
+				sourceText[index:])
+		}
+	} else if insertAfter != "" {
+		sourceText = removeExistingBlock(sourceText, beginMarker, endMarker)
+
+		var index = strings.LastIndex(sourceText, insertAfter)
+		// Not found, insert at EOF
+		if index < 0 {
+			return fmt.Sprintf("%s%s\n%s\n%s\n",
+				sourceText,
+				paddedBeginMarker,
+				paddedReplaceText,
+				paddedEndMarker)
+		} else {
+			// Insert after
+			index = index + len(insertAfter)
+			return fmt.Sprintf("%s\n%s\n%s\n%s%s",
+				sourceText[:index],
+				paddedBeginMarker,
+				paddedReplaceText,
+				paddedEndMarker,
+				sourceText[index:])
+		}
+	} else if strings.Contains(sourceText, beginMarker) {
+		// Replace existing block
+		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", beginMarker, endMarker))
+		return reReplaceMarker.ReplaceAllString(sourceText,
+			fmt.Sprintf("%s\n%s\n%s",
+				paddedBeginMarker,
+				paddedReplaceText,
+				paddedEndMarker),
+		)
+	} else {
+		return sourceText
+	}
+}
