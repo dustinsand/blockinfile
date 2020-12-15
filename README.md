@@ -9,7 +9,7 @@ lines.
 If this looks similar to
 Ansible's [ansible.builtin.blockinfile](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/blockinfile_module.html),
 it should. This CLI is based on it and supports a subset of the Ansible blockinfile flags. This CLI was created for scenarios
-when you wanted Ansible's blockinfile function, but did not want to be dependent on Ansible.
+when you wanted Ansible's blockinfile function, but did not want to be dependent on installing Ansible.
 
 # Installation
 
