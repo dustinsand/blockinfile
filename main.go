@@ -99,7 +99,7 @@ func main() {
 		}),
 		&cli.StringFlag{
 			Name:  "config",
-			Usage: "config file of TODO",
+			Usage: "YAML configuration file containing parameters for blockinfile",
 		},
 	}
 
