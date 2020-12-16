@@ -268,7 +268,12 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 				paddedEndMarker),
 		)
 	} else {
-		return sourceText
+		// Not found, add to EOF
+		return fmt.Sprintf("%s%s\n%s\n%s\n",
+			sourceText,
+			paddedBeginMarker,
+			paddedReplaceText,
+			paddedEndMarker)
 	}
 }
 
@@ -278,9 +283,23 @@ func updateBlockInFile(config Config) {
 		log.Fatal(err)
 	}
 
+	// Make sure file exists by touching it
+	err = touchFile(config.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if config.Backup {
 		backupFile(config.Path)
 	}
 
 	replaceTextBetweenMarkersInFile(config)
+}
+
+func touchFile(path string) error {
+	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }

@@ -34,7 +34,7 @@ go get -u github.com/dustinsand/blockinfile
 |marker|Default: "# {mark} MANAGED BLOCK"|The marker line template. {mark} will be replaced with the values in marker_begin (default="BEGIN") and marker_end (default="END").|
 |markerbegin|Default: "BEGIN"|This will be inserted at {mark} in the opening block marker.|
 |markerend|Default: "END"|This will be inserted at {mark} in the closing block marker.|
-|path (required)|text|The file to modify.|
+|path (required)|text|The file to modify. If the file does not exist, it will be created.|
 |state|true/false Default: true|Whether the block should be there or not.|
 
 # Examples

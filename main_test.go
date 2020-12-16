@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -12,6 +15,29 @@ func compare(t *testing.T, expected string, actual string) {
 		diffs := dmp.DiffMain(actual, expected, false)
 		t.Error("The differences are:")
 		fmt.Println(dmp.DiffPrettyText(diffs))
+	}
+}
+
+func TestEmptyFile(t *testing.T) {
+	var origText = ""
+	var expected = `# BEGIN MANAGED BLOCK
+swapped with me
+# END MANAGED BLOCK
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+
+	if expected != replaceTextBetweenMarkers(origText, config) {
+		t.Error("block should have been added to EOF")
 	}
 }
 
@@ -25,12 +51,15 @@ line 3
 line 1
 line 2
 line 3
+# BEGIN MANAGED BLOCK
+pattern not exist before
+# END MANAGED BLOCK
 `
 	config := Config{
 		Backup:       false,
 		State:        true,
 		Indent:       0,
-		Block:        "pattern not found",
+		Block:        "pattern not exist before",
 		InsertBefore: "",
 		InsertAfter:  "",
 		BeginMarker:  "# BEGIN MANAGED BLOCK",
@@ -38,9 +67,7 @@ line 3
 		Path:         "",
 	}
 
-	if expected != replaceTextBetweenMarkers(origText, config) {
-		t.Error("The pattern to replace should not have been found.")
-	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
 }
 
 func TestFindOneMatchToReplace(t *testing.T) {
@@ -350,4 +377,96 @@ line 3
 		Path:         "",
 	}
 	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestExistingFileAddBlock(t *testing.T) {
+	var origText = `
+line 1
+line 2
+line 3
+`
+	var expected = `
+line 1
+line 2
+line 3
+      # BEGIN MANAGED BLOCK
+      swapped with me
+      # END MANAGED BLOCK
+`
+	f, err := ioutil.TempFile("", "sample")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.WriteString(origText)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       6,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         f.Name(),
+	}
+	updateBlockInFile(config)
+
+	actual, err := ioutil.ReadFile(config.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(f.Name())
+
+	compare(t, expected, string(actual))
+}
+
+func TestFileNotExistAddBlock(t *testing.T) {
+	var expected = `      # BEGIN MANAGED BLOCK
+      swapped with me
+      # END MANAGED BLOCK
+`
+	f, err := ioutil.TempFile("", "sample")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = f.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.Remove(f.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       6,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         f.Name(),
+	}
+	updateBlockInFile(config)
+
+	actual, err := ioutil.ReadFile(config.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(f.Name())
+
+	compare(t, expected, string(actual))
 }
