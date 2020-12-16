@@ -105,7 +105,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "blockinfile",
-		Version: "v1.0.0",
+		Version: "v0.0.4",
 		Action: func(c *cli.Context) error {
 			config := Config{
 				Backup:       backup,

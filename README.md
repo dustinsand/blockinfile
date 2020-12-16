@@ -14,7 +14,7 @@ when you wanted Ansible's blockinfile function, but did not want to be dependent
 # Installation
 
 ```
-go get -u github.com/dustinsand/blockinfile
+go get github.com/dustinsand/blockinfile
 ```
 
 # CLI arguments
