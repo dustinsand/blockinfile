@@ -15,6 +15,12 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 )
 
+type Config struct {
+	Backup, State                                                  bool
+	Indent                                                         int
+	Block, InsertBefore, InsertAfter, BeginMarker, EndMarker, Path string
+}
+
 func main() {
 	var backup, state bool
 	var indent int
@@ -106,20 +112,23 @@ func main() {
 				log.Fatal(err)
 			}
 
-			if backup {
-				backupFile(path)
+			config := Config{
+				Backup:       backup,
+				State:        state,
+				Indent:       indent,
+				Block:        block,
+				InsertBefore: insertBefore,
+				InsertAfter:  insertAfter,
+				BeginMarker:  strings.Replace(marker, "{mark}", markerBegin, 1),
+				EndMarker:    strings.Replace(marker, "{mark}", markerEnd, 1),
+				Path:         path,
 			}
 
-			replaceTextBetweenMarkersInFile(
-				path,
-				block,
-				strings.Replace(marker, "{mark}", markerBegin, 1),
-				strings.Replace(marker, "{mark}", markerEnd, 1),
-				insertBefore,
-				insertAfter,
-				indent,
-				state,
-			)
+			if backup {
+				backupFile(config.Path)
+			}
+
+			replaceTextBetweenMarkersInFile(config)
 
 			return nil
 		},
@@ -134,6 +143,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func updateBlockInFile() {
+
 }
 
 func backupFile(sourceFile string) {
@@ -162,22 +175,19 @@ func checkFlags(block, marker, path, insertBefore, insertAfter string) error {
 	return nil
 }
 
-func replaceTextBetweenMarkersInFile(sourceFile, replaceText, beginMarker, endMarker, insertBefore, insertAfter string,
-	indent int,
-	state bool,
-) {
+func replaceTextBetweenMarkersInFile(config Config) {
 	// Read entire file content, giving us little control but
 	// making it very simple. No need to close the file.
-	content, err := ioutil.ReadFile(sourceFile)
+	content, err := ioutil.ReadFile(config.Path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	f, err := os.OpenFile(sourceFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	f, err := os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = f.WriteString(replaceTextBetweenMarkers(string(content), replaceText, beginMarker, endMarker, insertBefore, insertAfter, indent, state))
+	_, err = f.WriteString(replaceTextBetweenMarkers(string(content), config))
 	if err := f.Close(); err != nil {
 		log.Fatal(err)
 	}
@@ -192,20 +202,20 @@ func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
 	return sourceText
 }
 
-func replaceTextBetweenMarkers(sourceText, replaceText, beginMarker, endMarker, insertBefore, insertAfter string, indent int, state bool) string {
+func replaceTextBetweenMarkers(sourceText string, config Config) string {
 	reAddSpaces := regexp.MustCompile(`\r?\n`)
-	paddedBeginMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", indent), beginMarker)
-	paddedEndMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", indent), endMarker)
-	paddedReplaceText := fmt.Sprintf("%s%s", strings.Repeat(" ", indent),
-		reAddSpaces.ReplaceAllString(replaceText, "\n"+strings.Repeat(" ", indent)))
+	paddedBeginMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent), config.BeginMarker)
+	paddedEndMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent), config.EndMarker)
+	paddedReplaceText := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent),
+		reAddSpaces.ReplaceAllString(config.Block, "\n"+strings.Repeat(" ", config.Indent)))
 
-	if !state {
+	if !config.State {
 		// Remove the block
-		return removeExistingBlock(sourceText, beginMarker, endMarker)
-	} else if insertBefore != "" {
-		sourceText = removeExistingBlock(sourceText, beginMarker, endMarker)
+		return removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
+	} else if config.InsertBefore != "" {
+		sourceText = removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
 
-		var index = strings.LastIndex(sourceText, insertBefore)
+		var index = strings.LastIndex(sourceText, config.InsertBefore)
 		// Not found, insert at EOF
 		if index < 0 {
 			return fmt.Sprintf("%s%s\n%s\n%s\n",
@@ -222,10 +232,10 @@ func replaceTextBetweenMarkers(sourceText, replaceText, beginMarker, endMarker, 
 				paddedEndMarker,
 				sourceText[index:])
 		}
-	} else if insertAfter != "" {
-		sourceText = removeExistingBlock(sourceText, beginMarker, endMarker)
+	} else if config.InsertAfter != "" {
+		sourceText = removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
 
-		var index = strings.LastIndex(sourceText, insertAfter)
+		var index = strings.LastIndex(sourceText, config.InsertAfter)
 		// Not found, insert at EOF
 		if index < 0 {
 			return fmt.Sprintf("%s%s\n%s\n%s\n",
@@ -235,7 +245,7 @@ func replaceTextBetweenMarkers(sourceText, replaceText, beginMarker, endMarker, 
 				paddedEndMarker)
 		} else {
 			// Insert after
-			index = index + len(insertAfter)
+			index = index + len(config.InsertAfter)
 			return fmt.Sprintf("%s\n%s\n%s\n%s%s",
 				sourceText[:index],
 				paddedBeginMarker,
@@ -243,9 +253,9 @@ func replaceTextBetweenMarkers(sourceText, replaceText, beginMarker, endMarker, 
 				paddedEndMarker,
 				sourceText[index:])
 		}
-	} else if strings.Contains(sourceText, beginMarker) {
+	} else if strings.Contains(sourceText, config.BeginMarker) {
 		// Replace existing block
-		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", beginMarker, endMarker))
+		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker, config.EndMarker))
 		return reReplaceMarker.ReplaceAllString(sourceText,
 			fmt.Sprintf("%s\n%s\n%s",
 				paddedBeginMarker,

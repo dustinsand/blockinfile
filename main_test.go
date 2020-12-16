@@ -17,14 +17,19 @@ line 1
 line 2
 line 3
 `
-	if expected != replaceTextBetweenMarkers(origText,
-		"pattern not found",
-		"BEGIN",
-		"END",
-		"",
-		"",
-		0,
-		true) {
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "pattern not found",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+
+	if expected != replaceTextBetweenMarkers(origText, config) {
 		t.Error("The pattern to replace should not have been found.")
 	}
 }
@@ -50,14 +55,18 @@ swapped with me
 line 4
 line 5
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"",
-		0,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -81,14 +90,18 @@ line 2
     swapped with me
     # END MANAGED BLOCK
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"",
-		4,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -124,14 +137,18 @@ swapped with me
 line 4
 line 5
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"",
-		0,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -157,14 +174,18 @@ line 1
 line 2
 line 3
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"line 2",
-		"",
-		4,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "swapped with me",
+		InsertBefore: "line 2",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -190,14 +211,18 @@ line 1
 line 2
 line 3
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"line 1",
-		4,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "line 1",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -205,7 +230,6 @@ line 3
 		fmt.Println(dmp.DiffPrettyText(diffs))
 	}
 }
-
 
 func TestInsertAfterNoExistingBlock(t *testing.T) {
 	var origText = `
@@ -221,14 +245,18 @@ line 3
     swapped with me
     # END MANAGED BLOCK
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"line 3",
-		4,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "line 3",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -251,14 +279,18 @@ line 3
 swapped with me
 # END MANAGED BLOCK
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"",
-		"XXXX",
-		0,
-		true)
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "XXXX",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
@@ -281,14 +313,18 @@ line 1
 line 2
 line 3
 `
-	var actual = replaceTextBetweenMarkers(origText,
-		"swapped with me",
-		"# BEGIN MANAGED BLOCK",
-		"# END MANAGED BLOCK",
-		"XXXX",
-		"",
-		0,
-		false)
+	config := Config{
+		Backup:       false,
+		State:        false,
+		Indent:       0,
+		Block:        "swapped with me",
+		InsertBefore: "XXXX",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	var actual = replaceTextBetweenMarkers(origText, config)
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
