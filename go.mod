@@ -1,4 +1,4 @@
-module blockinfile
+module github.com/dustinsand/blockinfile
 
 go 1.15
 
