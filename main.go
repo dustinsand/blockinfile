@@ -182,9 +182,26 @@ func replaceTextBetweenMarkersInFile(config Config) {
 func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
 	beginIndex := strings.LastIndex(sourceText, beginMarker)
 	if beginIndex >= 0 {
+		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
+		// After removing leading spaces, reset beginIndex
+		beginIndex := strings.LastIndex(sourceText, beginMarker)
+
 		endIndex := strings.LastIndex(sourceText, endMarker) + len(endMarker) + 1
 		return sourceText[:beginIndex] + sourceText[endIndex:]
 	}
+	return sourceText
+}
+
+func removeLeadingSpacesOfBlock(sourceText string, beginIndex int) string {
+	// Remove any leading spaces of block
+	beginNonSpaceIndex := beginIndex
+	for nonSpaceIndex := beginIndex - 1; nonSpaceIndex >= 0; nonSpaceIndex-- {
+		if sourceText[nonSpaceIndex] != ' ' {
+			break
+		}
+		beginNonSpaceIndex = nonSpaceIndex
+	}
+	sourceText = sourceText[:beginNonSpaceIndex] + sourceText[beginIndex:]
 	return sourceText
 }
 
@@ -209,15 +226,14 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 				paddedBeginMarker,
 				paddedReplaceText,
 				paddedEndMarker)
-		} else {
-			// Insert before
-			return fmt.Sprintf("%s%s\n%s\n%s\n%s",
-				sourceText[:index],
-				paddedBeginMarker,
-				paddedReplaceText,
-				paddedEndMarker,
-				sourceText[index:])
 		}
+		// Insert before
+		return fmt.Sprintf("%s%s\n%s\n%s\n%s",
+			sourceText[:index],
+			paddedBeginMarker,
+			paddedReplaceText,
+			paddedEndMarker,
+			sourceText[index:])
 	} else if config.InsertAfter != "" {
 		sourceText = removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
 
@@ -229,17 +245,20 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 				paddedBeginMarker,
 				paddedReplaceText,
 				paddedEndMarker)
-		} else {
-			// Insert after
-			index = index + len(config.InsertAfter)
-			return fmt.Sprintf("%s\n%s\n%s\n%s%s",
-				sourceText[:index],
-				paddedBeginMarker,
-				paddedReplaceText,
-				paddedEndMarker,
-				sourceText[index:])
 		}
+		// Insert after
+		index = index + len(config.InsertAfter)
+		return fmt.Sprintf("%s\n%s\n%s\n%s%s",
+			sourceText[:index],
+			paddedBeginMarker,
+			paddedReplaceText,
+			paddedEndMarker,
+			sourceText[index:])
 	} else if strings.Contains(sourceText, config.BeginMarker) {
+		// Remove any leading spaces before replacing the block in case indentation changed
+		beginIndex := strings.LastIndex(sourceText, config.BeginMarker)
+		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
+
 		// Replace existing block
 		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker, config.EndMarker))
 		return reReplaceMarker.ReplaceAllString(sourceText,
