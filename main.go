@@ -107,11 +107,6 @@ func main() {
 		Name:    "blockinfile",
 		Version: "v1.0.0",
 		Action: func(c *cli.Context) error {
-			err := checkFlags(block, marker, path, insertBefore, insertAfter)
-			if err != nil {
-				log.Fatal(err)
-			}
-
 			config := Config{
 				Backup:       backup,
 				State:        state,
@@ -124,12 +119,7 @@ func main() {
 				Path:         path,
 			}
 
-			if backup {
-				backupFile(config.Path)
-			}
-
-			replaceTextBetweenMarkersInFile(config)
-
+			updateBlockInFile(config)
 			return nil
 		},
 		Before: altsrc.InitInputSourceWithContext(flags, altsrc.NewYamlSourceFromFlagFunc("config")),
@@ -143,10 +133,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func updateBlockInFile() {
-
 }
 
 func backupFile(sourceFile string) {
@@ -165,12 +151,12 @@ func backupFile(sourceFile string) {
 	}
 }
 
-func checkFlags(block, marker, path, insertBefore, insertAfter string) error {
-	if path == "" {
-		return errors.New("Required flag \"path\" not set.")
+func checkFlags(config Config) error {
+	if config.Path == "" {
+		return errors.New("required flag \"path\" not set")
 	}
-	if insertBefore != "" && insertAfter != "" {
-		return errors.New("Only one of these flags can be used at a time [markerbegin|markerend].")
+	if config.InsertBefore != "" && config.InsertAfter != "" {
+		return errors.New("only one of these flags can be used at a time [markerbegin|markerend]")
 	}
 	return nil
 }
@@ -265,4 +251,17 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 	} else {
 		return sourceText
 	}
+}
+
+func updateBlockInFile(config Config) {
+	err := checkFlags(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if config.Backup {
+		backupFile(config.Path)
+	}
+
+	replaceTextBetweenMarkersInFile(config)
 }
