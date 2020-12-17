@@ -103,6 +103,7 @@ func main() {
 		},
 	}
 
+	// TODO Dynamically set the Version
 	app := &cli.App{
 		Name:    "blockinfile",
 		Version: "v0.0.4",

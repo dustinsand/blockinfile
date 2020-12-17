@@ -51,7 +51,7 @@ line 3
 line 4
 ```
 
-blockinfile1.yml
+/tmp/blockinfile1.yml
 ```yaml
 path: /tmp/example1.txt
 block: |-
@@ -82,7 +82,7 @@ line 3
 line 4
 ```
 
-blockinfile2.yml
+/tmp/blockinfile2.yml
 ```yaml
 path: /tmp/example2.txt
 block: |-
