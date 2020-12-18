@@ -106,7 +106,7 @@ func main() {
 	// TODO Dynamically set the Version
 	app := &cli.App{
 		Name:    "blockinfile",
-		Version: "v0.0.4",
+		Version: "v0.0.5",
 		Action: func(c *cli.Context) error {
 			config := Config{
 				Backup:       backup,
@@ -175,9 +175,7 @@ func replaceTextBetweenMarkersInFile(config Config) {
 		log.Fatal(err)
 	}
 	_, err = f.WriteString(replaceTextBetweenMarkers(string(content), config))
-	if err := f.Close(); err != nil {
-		log.Fatal(err)
-	}
+	defer f.Close()
 }
 
 func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
@@ -302,5 +300,6 @@ func touchFile(path string) error {
 	if err != nil {
 		return err
 	}
-	return file.Close()
+	defer file.Close()
+	return nil
 }

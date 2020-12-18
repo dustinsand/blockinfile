@@ -402,10 +402,7 @@ line 3
 		log.Fatal(err)
 	}
 
-	err = f.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
+	defer f.Close()
 
 	config := Config{
 		Backup:       false,
@@ -439,14 +436,8 @@ func TestFileNotExistAddBlock(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = f.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = os.Remove(f.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
+	defer f.Close()
+	defer os.Remove(f.Name())
 
 	config := Config{
 		Backup:       false,
