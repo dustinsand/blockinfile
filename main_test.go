@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"io/ioutil"
 	"log"
@@ -13,8 +12,7 @@ func compare(t *testing.T, expected string, actual string) {
 	if expected != actual {
 		dmp := diffmatchpatch.New()
 		diffs := dmp.DiffMain(actual, expected, false)
-		t.Error("The differences are:")
-		fmt.Println(dmp.DiffPrettyText(diffs))
+		t.Errorf("The differences are:%s", dmp.DiffPrettyText(diffs))
 	}
 }
 

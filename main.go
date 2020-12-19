@@ -130,8 +130,7 @@ func main() {
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -144,8 +143,8 @@ func backupFile(sourceFile string) {
 	}
 
 	var backupFile = sourceFile + "." + time.Now().Format(time.RFC3339)
-	err = ioutil.WriteFile(backupFile, input, 0644)
-	if err != nil {
+
+	if err := ioutil.WriteFile(backupFile, input, 0644); err != nil {
 		fmt.Println("Error creating", backupFile)
 		log.Fatal(err)
 		return
@@ -277,14 +276,12 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 }
 
 func updateBlockInFile(config Config) {
-	err := checkFlags(config)
-	if err != nil {
+	if err := checkFlags(config); err != nil {
 		log.Fatal(err)
 	}
 
 	// Make sure file exists by touching it
-	err = touchFile(config.Path)
-	if err != nil {
+	if err := touchFile(config.Path); err != nil {
 		log.Fatal(err)
 	}
 
