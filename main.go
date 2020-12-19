@@ -106,7 +106,8 @@ func main() {
 	// TODO Dynamically set the Version
 	app := &cli.App{
 		Name:    "blockinfile",
-		Version: "v0.0.5",
+		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
+		Version: "v0.0.6",
 		Action: func(c *cli.Context) error {
 			config := Config{
 				Backup:       backup,
