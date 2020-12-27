@@ -211,10 +211,10 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 	paddedReplaceText := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent),
 		reAddSpaces.ReplaceAllString(config.Block, "\n"+strings.Repeat(" ", config.Indent)))
 
-	if !config.State {
-		// Remove the block
+	switch {
+	case !config.State:
 		return removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
-	} else if config.InsertBefore != "" {
+	case config.InsertBefore != "":
 		sourceText = removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
 
 		var index = strings.LastIndex(sourceText, config.InsertBefore)
@@ -233,7 +233,7 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 			paddedReplaceText,
 			paddedEndMarker,
 			sourceText[index:])
-	} else if config.InsertAfter != "" {
+	case config.InsertAfter != "":
 		sourceText = removeExistingBlock(sourceText, config.BeginMarker, config.EndMarker)
 
 		var index = strings.LastIndex(sourceText, config.InsertAfter)
@@ -253,7 +253,7 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 			paddedReplaceText,
 			paddedEndMarker,
 			sourceText[index:])
-	} else if strings.Contains(sourceText, config.BeginMarker) {
+	case strings.Contains(sourceText, config.BeginMarker):
 		// Remove any leading spaces before replacing the block in case indentation changed
 		beginIndex := strings.LastIndex(sourceText, config.BeginMarker)
 		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
@@ -266,7 +266,7 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 				paddedReplaceText,
 				paddedEndMarker),
 		)
-	} else {
+	default:
 		// Not found, add to EOF
 		return fmt.Sprintf("%s%s\n%s\n%s\n",
 			sourceText,
