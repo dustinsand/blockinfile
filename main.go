@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,17 +23,16 @@ type Config struct {
 }
 
 func main() {
-	var backup, state bool
 	var indent int
-	var block, insertBefore, insertAfter, marker, markerBegin, markerEnd, path string
+	var backup, block, insertBefore, insertAfter, marker, markerBegin, markerEnd, path, state string
 
 	flags := []cli.Flag{
-		altsrc.NewBoolFlag(&cli.BoolFlag{
+		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "backup",
 			Usage:       "create a backup file including the timestamp information so you can get the original file back if you somehow clobbered it incorrectly.",
 			Destination: &backup,
 			DefaultText: "false",
-			Value:       false,
+			Value:       "false",
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name: "block",
@@ -90,11 +90,12 @@ func main() {
 			Usage:       "The file to modify. If the path is relative, the working directory of where blockinfile is running will be pre-fixed to the path.",
 			Destination: &path,
 		}),
-		altsrc.NewBoolFlag(&cli.BoolFlag{
+		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "state",
 			Usage:       "Whether the block should be there or not.",
 			Destination: &state,
 			DefaultText: "true",
+			Value:       "true",
 		}),
 		&cli.StringFlag{
 			Name:  "config",
@@ -106,11 +107,13 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.4",
+		Version: "v0.1.5",
 		Action: func(c *cli.Context) error {
+			var backupAsBool, _ = strconv.ParseBool(backup)
+			var stateAsBool, _ = strconv.ParseBool(state)
 			config := Config{
-				Backup:       backup,
-				State:        state,
+				Backup:       backupAsBool,
+				State:        stateAsBool,
 				Indent:       indent,
 				Block:        block,
 				InsertBefore: insertBefore,
