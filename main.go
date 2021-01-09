@@ -95,7 +95,6 @@ func main() {
 			Usage:       "Whether the block should be there or not.",
 			Destination: &state,
 			DefaultText: "true",
-			Value:       true,
 		}),
 		&cli.StringFlag{
 			Name:  "config",
@@ -107,7 +106,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.3",
+		Version: "v0.1.4",
 		Action: func(c *cli.Context) error {
 			config := Config{
 				Backup:       backup,
