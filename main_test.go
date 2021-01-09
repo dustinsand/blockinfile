@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"log"
 	"os"
@@ -458,4 +459,14 @@ func TestFileNotExistAddBlock(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	compare(t, expected, string(actual))
+}
+
+func TestGetFullPath(t *testing.T) {
+	wd, _ := os.Getwd()
+
+	assert.Equal(t, wd, getFullPath(wd))
+	assert.Equal(t, wd+"/../foo/bar", getFullPath("../foo/bar"))
+	assert.Equal(t, wd+"/./foo/bar", getFullPath("./foo/bar"))
+	assert.Equal(t, wd+"/foo/bar", getFullPath("foo/bar"))
+	assert.Equal(t, "/fullpath/foo/bar", getFullPath("/fullpath/foo/bar"))
 }

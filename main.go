@@ -87,7 +87,7 @@ func main() {
 		}),
 		altsrc.NewStringFlag(&cli.StringFlag{
 			Name:        "path",
-			Usage:       "the file to modify",
+			Usage:       "The file to modify. If the path is relative, the working directory of where blockinfile is running will be pre-fixed to the path.",
 			Destination: &path,
 		}),
 		altsrc.NewBoolFlag(&cli.BoolFlag{
@@ -107,7 +107,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.0.6",
+		Version: "v0.1.3",
 		Action: func(c *cli.Context) error {
 			config := Config{
 				Backup:       backup,
@@ -118,7 +118,7 @@ func main() {
 				InsertAfter:  insertAfter,
 				BeginMarker:  strings.Replace(marker, "{mark}", markerBegin, 1),
 				EndMarker:    strings.Replace(marker, "{mark}", markerEnd, 1),
-				Path:         path,
+				Path:         getFullPath(path),
 			}
 
 			updateBlockInFile(config)
@@ -160,6 +160,15 @@ func checkFlags(config Config) error {
 		return errors.New("only one of these flags can be used at a time [markerbegin|markerend]")
 	}
 	return nil
+}
+
+// If path is relative, add working directory as prefix to path; otherwise, return the existing full path
+func getFullPath(path string) string {
+	if strings.HasPrefix(path, string(os.PathSeparator)) {
+		return path
+	}
+	wd, _ := os.Getwd()
+	return wd + string(os.PathSeparator) + path
 }
 
 func replaceTextBetweenMarkersInFile(config Config) {
