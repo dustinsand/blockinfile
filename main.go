@@ -107,7 +107,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.6",
+		Version: "v0.1.7",
 		Action: func(c *cli.Context) error {
 			var backupAsBool, _ = strconv.ParseBool(backup)
 			var stateAsBool, _ = strconv.ParseBool(state)
