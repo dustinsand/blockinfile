@@ -107,7 +107,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.7",
+		Version: "v0.1.8",
 		Action: func(c *cli.Context) error {
 			var backupAsBool, _ = strconv.ParseBool(backup)
 			var stateAsBool, _ = strconv.ParseBool(state)
@@ -190,11 +190,12 @@ func replaceTextBetweenMarkersInFile(config Config) {
 }
 
 func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
-	beginIndex := strings.LastIndex(sourceText, beginMarker)
+	// Add \n because markers could have similar prefix, \n will make sure match to end of line
+	beginIndex := strings.LastIndex(sourceText, beginMarker+"\n")
 	if beginIndex >= 0 {
 		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
 		// After removing leading spaces, reset beginIndex
-		beginIndex := strings.LastIndex(sourceText, beginMarker)
+		beginIndex := strings.LastIndex(sourceText, beginMarker+"\n")
 
 		endIndex := strings.LastIndex(sourceText, endMarker) + len(endMarker) + 1
 		return sourceText[:beginIndex] + sourceText[endIndex:]
@@ -264,13 +265,13 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 			paddedReplaceText,
 			paddedEndMarker,
 			sourceText[index:])
-	case strings.Contains(sourceText, config.BeginMarker):
+	case strings.Contains(sourceText, config.BeginMarker+"\n"):
 		// Remove any leading spaces before replacing the block in case indentation changed
-		beginIndex := strings.LastIndex(sourceText, config.BeginMarker)
+		beginIndex := strings.LastIndex(sourceText, config.BeginMarker+"\n")
 		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
 
 		// Replace existing block
-		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker, config.EndMarker))
+		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker+"\n", config.EndMarker))
 		return reReplaceMarker.ReplaceAllString(sourceText,
 			fmt.Sprintf("%s\n%s\n%s",
 				paddedBeginMarker,

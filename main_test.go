@@ -204,6 +204,111 @@ line 5
 	compare(t, expected, replaceTextBetweenMarkers(origText, config))
 }
 
+func TestInsertBlockSimilarPrefixMarker(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+`
+	var expected = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+# BEGIN MANAGED BLOCK - Common
+new block
+# END MANAGED BLOCK - Common
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "new block",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK - Common",
+		EndMarker:    "# END MANAGED BLOCK - Common",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestReplaceBlockSimilarPrefixMarker(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+# BEGIN MANAGED BLOCK - Common
+new block
+# END MANAGED BLOCK - Common
+`
+	var expected = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+# BEGIN MANAGED BLOCK - Common
+replaced similar prefix block
+# END MANAGED BLOCK - Common
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "replaced similar prefix block",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK - Common",
+		EndMarker:    "# END MANAGED BLOCK - Common",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestRemoveBlockSimilarPrefixMarker(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+# BEGIN MANAGED BLOCK - Common
+new block
+# END MANAGED BLOCK - Common
+`
+	var expected = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+`
+	config := Config{
+		Backup:       false,
+		State:        false,
+		Indent:       0,
+		Block:        "new block",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK - Common",
+		EndMarker:    "# END MANAGED BLOCK - Common",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
 func TestInsertBeforeExistingBlock(t *testing.T) {
 	var origText = `
 line 1
@@ -230,6 +335,105 @@ line 3
 		InsertAfter:  "",
 		BeginMarker:  "# BEGIN MANAGED BLOCK",
 		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestInsertBeforeNonExistingBlock(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK
+original block of text
+# END MANAGED BLOCK
+line 3
+`
+	var expected = `
+line 1
+line 2
+line 3
+    # BEGIN MANAGED BLOCK
+    swapped with me
+    # END MANAGED BLOCK
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "swapped with me",
+		InsertBefore: "i do not exist",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestInsertBeforeBlockSimilarPrefixMarker(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+`
+	var expected = `
+    # BEGIN MANAGED BLOCK - Common
+    new block
+    # END MANAGED BLOCK - Common
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "new block",
+		InsertBefore: "line 1",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK - Common",
+		EndMarker:    "# END MANAGED BLOCK - Common",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestInsertAfterBlockSimilarPrefixMarker(t *testing.T) {
+	var origText = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+`
+	var expected = `
+line 1
+line 2
+# BEGIN MANAGED BLOCK - Common Global
+original block of text
+# END MANAGED BLOCK - Common Global
+line 3
+    # BEGIN MANAGED BLOCK - Common
+    new block
+    # END MANAGED BLOCK - Common
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       4,
+		Block:        "new block",
+		InsertBefore: "",
+		InsertAfter:  "line 3",
+		BeginMarker:  "# BEGIN MANAGED BLOCK - Common",
+		EndMarker:    "# END MANAGED BLOCK - Common",
 		Path:         "",
 	}
 	compare(t, expected, replaceTextBetweenMarkers(origText, config))
