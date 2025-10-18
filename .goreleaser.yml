@@ -9,22 +9,11 @@ builds:
     goarch:
       - amd64
       - arm64
-    main: ./cmd/your-app-name # Path to your main package
-    binary: your-app-name # Name of the generated binary
-
-archives:
-  - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-    # Files to include in the archive (e.g., README, LICENSE)
-    files:
-      - README.md
-      - LICENSE
+    main: . # Path to your main package
+    binary: blockinfile # Name of the generated binary
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
-
-snapshot:
-  name_template: "{{ .Tag }}-next"
 
 changelog:
   sort: asc
