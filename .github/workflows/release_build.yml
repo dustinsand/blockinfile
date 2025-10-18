@@ -6,25 +6,22 @@ on:
       - "*"  # Trigger only on tag pushes
 
 jobs:
-  release:
-    name: Release with GoReleaser
+  goreleaser:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for GoReleaser to access full Git history
-
+          fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-
+          go-version: stable
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
-          args: release --rm-dist
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
