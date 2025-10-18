@@ -107,7 +107,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.8",
+		Version: "v0.1.9",
 		Action: func(c *cli.Context) error {
 			var backupAsBool, _ = strconv.ParseBool(backup)
 			var stateAsBool, _ = strconv.ParseBool(state)
@@ -181,12 +181,19 @@ func replaceTextBetweenMarkersInFile(config Config) {
 		log.Fatal(err)
 	}
 
-	f, err := os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		log.Fatal(err)
+	updatedContent := replaceTextBetweenMarkers(string(content), config)
+	if string(content) != updatedContent {
+		if config.Backup {
+			backupFile(config.Path)
+		}
+
+		f, err := os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = f.WriteString(updatedContent)
+		defer f.Close()
 	}
-	_, err = f.WriteString(replaceTextBetweenMarkers(string(content), config))
-	defer f.Close()
 }
 
 func removeExistingBlock(sourceText, beginMarker, endMarker string) string {
@@ -221,7 +228,7 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 	paddedBeginMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent), config.BeginMarker)
 	paddedEndMarker := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent), config.EndMarker)
 	paddedReplaceText := fmt.Sprintf("%s%s", strings.Repeat(" ", config.Indent),
-		reAddSpaces.ReplaceAllString(config.Block, "\n"+strings.Repeat(" ", config.Indent)))
+		reAddSpaces.ReplaceAllLiteralString(config.Block, "\n"+strings.Repeat(" ", config.Indent)))
 
 	switch {
 	case !config.State:
@@ -272,7 +279,7 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 
 		// Replace existing block
 		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker+"\n", config.EndMarker))
-		return reReplaceMarker.ReplaceAllString(sourceText,
+		return reReplaceMarker.ReplaceAllLiteralString(sourceText,
 			fmt.Sprintf("%s\n%s\n%s",
 				paddedBeginMarker,
 				paddedReplaceText,
@@ -298,13 +305,10 @@ func updateBlockInFile(config Config) {
 		log.Fatal(err)
 	}
 
-	if config.Backup {
-		backupFile(config.Path)
-	}
-
 	replaceTextBetweenMarkersInFile(config)
 }
 
+// Does not update the file’s modification timestamp.
 func touchFile(path string) error {
 	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {

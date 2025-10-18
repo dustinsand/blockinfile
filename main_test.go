@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 func compare(t *testing.T, expected string, actual string) {
@@ -15,6 +16,15 @@ func compare(t *testing.T, expected string, actual string) {
 		diffs := dmp.DiffMain(actual, expected, false)
 		t.Errorf("The differences are:%s", dmp.DiffPrettyText(diffs))
 	}
+}
+
+// getModTimeFromFile returns the modification time of an already opened file.
+func getModTimeFromFile(file *os.File) (time.Time, error) {
+	info, err := file.Stat()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return info.ModTime(), nil
 }
 
 func TestEmptyFile(t *testing.T) {
@@ -99,6 +109,45 @@ line 5
 		InsertAfter:  "",
 		BeginMarker:  "# BEGIN MANAGED BLOCK",
 		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestDollarSignToReplace(t *testing.T) {
+	var origText = `
+line 1
+$USER
+$20
+line 2
+line 3
+#!/bin/bash
+$USER1 original block of text $VAR1
+# managed file end
+line 4
+line 5
+`
+	var expected = `
+line 1
+$USER
+$20
+line 2
+line 3
+#!/bin/bash
+$1 swapped with $VAR2 lorem ipsum. $$$ lorem ipsum. Echo $USER
+# managed file end
+line 4
+line 5
+`
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "$1 swapped with $VAR2 lorem ipsum. $$$ lorem ipsum. Echo $USER",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "#!/bin/bash",
+		EndMarker:    "# managed file end",
 		Path:         "",
 	}
 	compare(t, expected, replaceTextBetweenMarkers(origText, config))
@@ -618,7 +667,12 @@ line 3
 		EndMarker:    "# END MANAGED BLOCK",
 		Path:         f.Name(),
 	}
+	fBeforeModTime, err := getModTimeFromFile(f)
 	updateBlockInFile(config)
+	fAfterModTime, err := getModTimeFromFile(f)
+	if fBeforeModTime.UnixNano() > fAfterModTime.UnixNano() {
+		log.Fatal("Expected fAfterModTime to be after fBeforeModTime")
+	}
 
 	actual, err := ioutil.ReadFile(config.Path)
 	if err != nil {
@@ -653,7 +707,63 @@ func TestFileNotExistAddBlock(t *testing.T) {
 		EndMarker:    "# END MANAGED BLOCK",
 		Path:         f.Name(),
 	}
+	fBeforeModTime, err := getModTimeFromFile(f)
 	updateBlockInFile(config)
+	fAfterModTime, err := getModTimeFromFile(f)
+	if fBeforeModTime.UnixNano() > fAfterModTime.UnixNano() {
+		log.Fatal("Expected fAfterModTime to be after fBeforeModTime")
+	}
+	updateBlockInFile(config)
+
+	actual, err := ioutil.ReadFile(config.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(f.Name())
+
+	compare(t, expected, string(actual))
+}
+
+func TestNoChange(t *testing.T) {
+	var origText = `
+      # BEGIN MANAGED BLOCK
+      swapped with me
+      # END MANAGED BLOCK
+`
+	var expected = `
+      # BEGIN MANAGED BLOCK
+      swapped with me
+      # END MANAGED BLOCK
+`
+	f, err := ioutil.TempFile("", "sample")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.WriteString(origText)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer f.Close()
+
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       6,
+		Block:        "swapped with me",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         f.Name(),
+	}
+	fBeforeModTime, err := getModTimeFromFile(f)
+	updateBlockInFile(config)
+	fAfterModTime, err := getModTimeFromFile(f)
+	if fBeforeModTime.UnixNano() != fAfterModTime.UnixNano() {
+		log.Fatal("File was not updated so expected fAfterModTime to be equal to fBeforeModTime")
+	}
 
 	actual, err := ioutil.ReadFile(config.Path)
 	if err != nil {
