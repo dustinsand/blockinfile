@@ -631,6 +631,66 @@ line 3
 	compare(t, expected, replaceTextBetweenMarkers(origText, config))
 }
 
+func TestMultiLineBlock(t *testing.T) {
+	var origText = `
+# BEGIN MANAGED BLOCK
+  <?PHP
+    phpinfo();
+# END MANAGED BLOCK
+`
+	var expected = `
+# BEGIN MANAGED BLOCK
+  <?PHP
+    phpinfo();
+    # test
+# END MANAGED BLOCK
+`
+	config := Config{
+		Backup: false,
+		State:  true,
+		Indent: 0,
+		Block: "  <?PHP\n" +
+			"    phpinfo();\n" +
+			"    # test",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
+func TestMarkerWithStarAndAsterisk(t *testing.T) {
+	var origText = `
+#!/usr/bin/php -q
+  <?PHP
+    phpinfo(); $1 $USER1
+/* managed file end */ ?>
+`
+	var expected = `
+#!/usr/bin/php -q
+  <?PHP
+    phpinfo(); $1 $USER1
+    # test
+/* managed file end */ ?>
+`
+	config := Config{
+		Backup: false,
+		State:  true,
+		Indent: 0,
+		Block: "  <?PHP\n" +
+			"    phpinfo(); $1 $USER1\n" +
+			"    # test",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "#!/usr/bin/php -q",
+		EndMarker:    "/* managed file end */ ?>",
+		Path:         "",
+	}
+	compare(t, expected, replaceTextBetweenMarkers(origText, config))
+}
+
 func TestExistingFileAddBlock(t *testing.T) {
 	var origText = `
 line 1

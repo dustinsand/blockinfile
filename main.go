@@ -278,7 +278,8 @@ func replaceTextBetweenMarkers(sourceText string, config Config) string {
 		sourceText = removeLeadingSpacesOfBlock(sourceText, beginIndex)
 
 		// Replace existing block
-		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s", config.BeginMarker+"\n", config.EndMarker))
+		reReplaceMarker := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*?)%s",
+			regexp.QuoteMeta(config.BeginMarker)+"\n", regexp.QuoteMeta(config.EndMarker)))
 		return reReplaceMarker.ReplaceAllLiteralString(sourceText,
 			fmt.Sprintf("%s\n%s\n%s",
 				paddedBeginMarker,
