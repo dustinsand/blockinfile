@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -20,11 +21,12 @@ type Config struct {
 	Backup, State                                                  bool
 	Indent                                                         int
 	Block, InsertBefore, InsertAfter, BeginMarker, EndMarker, Path string
+	Mode, Owner, Group                                             string
 }
 
 func main() {
 	var indent int
-	var backup, block, insertBefore, insertAfter, marker, markerBegin, markerEnd, path, state string
+	var backup, block, insertBefore, insertAfter, marker, markerBegin, markerEnd, path, state, mode, owner, group string
 
 	flags := []cli.Flag{
 		altsrc.NewStringFlag(&cli.StringFlag{
@@ -97,6 +99,24 @@ func main() {
 			DefaultText: "true",
 			Value:       "true",
 		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "mode",
+			Usage:       "The permissions the resulting file should have. For example, '0644' or '0755'.",
+			Destination: &mode,
+			Value:       "",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "owner",
+			Usage:       "Name of the user that should own the file.",
+			Destination: &owner,
+			Value:       "",
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "group",
+			Usage:       "Name of the group that should own the file.",
+			Destination: &group,
+			Value:       "",
+		}),
 		&cli.StringFlag{
 			Name:  "config",
 			Usage: "YAML configuration file containing parameters for blockinfile",
@@ -121,6 +141,9 @@ func main() {
 				BeginMarker:  strings.Replace(marker, "{mark}", markerBegin, 1),
 				EndMarker:    strings.Replace(marker, "{mark}", markerEnd, 1),
 				Path:         getFullPath(path),
+				Mode:         mode,
+				Owner:        owner,
+				Group:        group,
 			}
 
 			updateBlockInFile(config)
@@ -307,6 +330,81 @@ func updateBlockInFile(config Config) {
 	}
 
 	replaceTextBetweenMarkersInFile(config)
+	
+	// Apply ownership and permissions after file modification
+	if err := applyFileAttributes(config); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// applyFileAttributes applies mode, owner, and group settings to the file
+func applyFileAttributes(config Config) error {
+	// Apply owner and group
+	if config.Owner != "" || config.Group != "" {
+		if err := applyOwnership(config.Path, config.Owner, config.Group); err != nil {
+			return err
+		}
+	}
+	
+	// Apply mode (permissions)
+	if config.Mode != "" {
+		if err := applyMode(config.Path, config.Mode); err != nil {
+			return err
+		}
+	}
+	
+	return nil
+}
+
+// applyOwnership changes the owner and/or group of the file
+func applyOwnership(path, owner, group string) error {
+	// Build chown command
+	var chownArg string
+	
+	if owner != "" && group != "" {
+		chownArg = owner + ":" + group
+	} else if owner != "" {
+		chownArg = owner
+	} else if group != "" {
+		chownArg = ":" + group
+	} else {
+		return nil // Nothing to do
+	}
+	
+	cmd := exec.Command("chown", chownArg, path)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to change ownership: %s, error: %w", string(output), err)
+	}
+	
+	return nil
+}
+
+// applyMode changes the file permissions
+func applyMode(path, mode string) error {
+	// Parse mode string to os.FileMode
+	// Handle octal mode (e.g., "0644", "644")
+	modeStr := strings.TrimPrefix(mode, "0")
+	modeInt, err := strconv.ParseUint(modeStr, 8, 32)
+	if err != nil {
+		// If parsing as octal fails, try symbolic mode via chmod command
+		return applyModeViaChmod(path, mode)
+	}
+	
+	fileMode := os.FileMode(modeInt)
+	if err := os.Chmod(path, fileMode); err != nil {
+		return fmt.Errorf("failed to change mode: %w", err)
+	}
+	
+	return nil
+}
+
+// applyModeViaChmod uses the chmod command for symbolic modes (e.g., "u+rwx")
+func applyModeViaChmod(path, mode string) error {
+	cmd := exec.Command("chmod", mode, path)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to change mode via chmod: %s, error: %w", string(output), err)
+	}
+	return nil
 }
 
 // Does not update the file’s modification timestamp.
