@@ -127,7 +127,7 @@ func main() {
 	app := &cli.App{
 		Name:    "blockinfile",
 		Usage:   "insert/update/remove a block of multi-line text surrounded by customizable marker lines",
-		Version: "v0.1.10",
+		Version: "v0.1.11",
 		Action: func(c *cli.Context) error {
 			var backupAsBool, _ = strconv.ParseBool(backup)
 			var stateAsBool, _ = strconv.ParseBool(state)
@@ -330,7 +330,7 @@ func updateBlockInFile(config Config) {
 	}
 
 	replaceTextBetweenMarkersInFile(config)
-	
+
 	// Apply ownership and permissions after file modification
 	if err := applyFileAttributes(config); err != nil {
 		log.Fatal(err)
@@ -345,14 +345,14 @@ func applyFileAttributes(config Config) error {
 			return err
 		}
 	}
-	
+
 	// Apply mode (permissions)
 	if config.Mode != "" {
 		if err := applyMode(config.Path, config.Mode); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -360,7 +360,7 @@ func applyFileAttributes(config Config) error {
 func applyOwnership(path, owner, group string) error {
 	// Build chown command
 	var chownArg string
-	
+
 	if owner != "" && group != "" {
 		chownArg = owner + ":" + group
 	} else if owner != "" {
@@ -370,12 +370,12 @@ func applyOwnership(path, owner, group string) error {
 	} else {
 		return nil // Nothing to do
 	}
-	
+
 	cmd := exec.Command("chown", chownArg, path)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to change ownership: %s, error: %w", string(output), err)
 	}
-	
+
 	return nil
 }
 
@@ -389,12 +389,12 @@ func applyMode(path, mode string) error {
 		// If parsing as octal fails, try symbolic mode via chmod command
 		return applyModeViaChmod(path, mode)
 	}
-	
+
 	fileMode := os.FileMode(modeInt)
 	if err := os.Chmod(path, fileMode); err != nil {
 		return fmt.Errorf("failed to change mode: %w", err)
 	}
-	
+
 	return nil
 }
 
