@@ -844,3 +844,178 @@ func TestGetFullPath(t *testing.T) {
 	assert.Equal(t, wd+"/foo/bar", getFullPath("foo/bar"))
 	assert.Equal(t, "/fullpath/foo/bar", getFullPath("/fullpath/foo/bar"))
 }
+
+func TestApplyModeOctal(t *testing.T) {
+	f, err := ioutil.TempFile("", "mode_test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	// Test octal mode with leading 0
+	err = applyMode(f.Name(), "0755")
+	assert.NoError(t, err)
+
+	info, err := os.Stat(f.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+
+	// Test octal mode without leading 0
+	err = applyMode(f.Name(), "644")
+	assert.NoError(t, err)
+
+	info, err = os.Stat(f.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestApplyModeSymbolic(t *testing.T) {
+	f, err := ioutil.TempFile("", "mode_test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	// Set initial mode
+	os.Chmod(f.Name(), 0644)
+
+	// Test symbolic mode
+	err = applyMode(f.Name(), "u+x")
+	assert.NoError(t, err)
+
+	info, err := os.Stat(f.Name())
+	assert.NoError(t, err)
+	// Should now be 0744 (added execute for user)
+	assert.Equal(t, os.FileMode(0744), info.Mode().Perm())
+}
+
+func TestApplyOwnership(t *testing.T) {
+	// This test requires running as root, so we skip if not root
+	if os.Geteuid() != 0 {
+		t.Skip("Skipping test that requires root privileges")
+	}
+
+	f, err := ioutil.TempFile("", "ownership_test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	// Test setting owner
+	err = applyOwnership(f.Name(), "root", "")
+	assert.NoError(t, err)
+
+	// Test setting group
+	err = applyOwnership(f.Name(), "", "root")
+	assert.NoError(t, err)
+
+	// Test setting both
+	err = applyOwnership(f.Name(), "root", "root")
+	assert.NoError(t, err)
+}
+
+func TestFileWithModeOwnerGroup(t *testing.T) {
+	// This test requires running as root for owner/group changes
+	if os.Geteuid() != 0 {
+		t.Skip("Skipping test that requires root privileges")
+	}
+
+	var origText = `line 1
+line 2
+`
+	var expected = `line 1
+line 2
+# BEGIN MANAGED BLOCK
+test block
+# END MANAGED BLOCK
+`
+	f, err := ioutil.TempFile("", "full_test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.WriteString(origText)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "test block",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         f.Name(),
+		Mode:         "0644",
+		Owner:        "root",
+		Group:        "root",
+	}
+
+	updateBlockInFile(config)
+
+	// Check content
+	actual, err := ioutil.ReadFile(config.Path)
+	assert.NoError(t, err)
+	compare(t, expected, string(actual))
+
+	// Check permissions
+	info, err := os.Stat(f.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestFileWithModeOnly(t *testing.T) {
+	var origText = `line 1
+line 2
+`
+	var expected = `line 1
+line 2
+# BEGIN MANAGED BLOCK
+test block
+# END MANAGED BLOCK
+`
+	f, err := ioutil.TempFile("", "mode_only_test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.WriteString(origText)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	config := Config{
+		Backup:       false,
+		State:        true,
+		Indent:       0,
+		Block:        "test block",
+		InsertBefore: "",
+		InsertAfter:  "",
+		BeginMarker:  "# BEGIN MANAGED BLOCK",
+		EndMarker:    "# END MANAGED BLOCK",
+		Path:         f.Name(),
+		Mode:         "0600",
+		Owner:        "",
+		Group:        "",
+	}
+
+	updateBlockInFile(config)
+
+	// Check content
+	actual, err := ioutil.ReadFile(config.Path)
+	assert.NoError(t, err)
+	compare(t, expected, string(actual))
+
+	// Check permissions
+	info, err := os.Stat(f.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+}
